@@ -77,7 +77,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     supabase
-      .from('cron_jobs_logs')
+      .from('cron_job_logs')
       .select('status, message, run_at')
       .eq('job_name', 'generate_monthly_dues')
       .order('run_at', { ascending: false })
@@ -134,20 +134,22 @@ export default function Dashboard() {
   }
 
   return (<>
-    <div className="max-w-4xl mx-auto mt-10 font-sans pb-16">
-      <div className="flex justify-between items-center mb-4">
-        <p>Login sebagai: {session?.user.email}</p>
-        {cronLog && (
-          <p className='text-xs mb-3'>
-            Auto-generate tagihan:{' '}
-            <span className={cronLog.status === 'success' ? 'text-green-600' : 'text-red-600'}>
-              {cronLog.status === 'success' ? 'OK' : 'Error'}
-            </span>
-            {' '}— terakhir jalan {new Date(cronLog.run_at).toLocaleString('id-ID')}
-            {cronLog.status === 'error' && `: ${cronLog.message}`}
-          </p>
-        )}
-        <div className="flex gap-4 items-center">
+    <div className="max-w-5xl mx-auto mt-10 font-sans pb-16">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-2 mb-4 px-4">
+        <div className='block'>
+          <p>Login sebagai: {session?.user.email}</p>
+          {cronLog && (
+            <p className='text-xs mb-3'>
+              Auto-generate tagihan:{' '}
+              <span className={cronLog.status === 'success' ? 'text-green-600' : 'text-red-600'}>
+                {cronLog.status === 'success' ? 'OK' : 'Error'}
+              </span>
+              {' '}— terakhir jalan {new Date(cronLog.run_at).toLocaleString('id-ID')}
+              {cronLog.status === 'error' && `: ${cronLog.message}`}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
           <button onClick={() => setTransactionModalOpen(true)} className='bg-gray-900 text-white rounded px-3 py-2 hover:bg-gray-700'>+ Transaksi</button>
           <button onClick={() => {
             setEditingDue(null);
@@ -182,32 +184,32 @@ export default function Dashboard() {
       <h2 className="font-semibold mb-2 text-center">Daftar Tagihan IPL</h2>
       {fetchError && <p className="text-red-600 text-center">Gagal fetch: {fetchError}</p>}
 
-      <div className="overflow-x-auto pb-24 pt-8">
-        <div className="flex gap-2 mb-3 justify-center">
-          <select name="filterUnit" id="filterUnit" value={filterUnit} onChange={e => setFilterUnit(e.target.value)} className='border border-gray-300 rounded px-3 py-2 text-sm'>
-            <option value="">Semua unit</option>
-            {availableUnits.map(code => (
-              <option value={code} key={code}>{code}</option>
-            ))}
-          </select>
+      <div className="flex gap-2 mb-3 justify-center">
+        <select name="filterUnit" id="filterUnit" value={filterUnit} onChange={e => setFilterUnit(e.target.value)} className='border border-gray-300 rounded px-3 py-2 text-sm'>
+          <option value="">Semua unit</option>
+          {availableUnits.map(code => (
+            <option value={code} key={code}>{code}</option>
+          ))}
+        </select>
 
-          <select name="filterMonth" id="filterMonth" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className='border border-gray-300 rounded px-3 py-2 text-sm'>
-            <option value="">Semua bulan</option>
-            {Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => (
-              <option value={m} key={m}>
-                {new Date(2000, Number(m) - 1).toLocaleString('id-ID', {month: 'long'})}
-              </option>
-            ))}
-          </select>
+        <select name="filterMonth" id="filterMonth" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className='border border-gray-300 rounded px-3 py-2 text-sm'>
+          <option value="">Semua bulan</option>
+          {Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => (
+            <option value={m} key={m}>
+              {new Date(2000, Number(m) - 1).toLocaleString('id-ID', {month: 'long'})}
+            </option>
+          ))}
+        </select>
 
-          <select name="filterYear" id="Year" value={filterYear} onChange={e => setFilterYear(e.target.value)} className='border border-gray-300 rounded px-3 py-2 text-sm'>
-            <option value="">Semua tahun</option>
-            {availableYears.map(year => (
-              <option value={year} key={year}>{year}</option>
-            ))}
-          </select>
-        </div>
+        <select name="filterYear" id="Year" value={filterYear} onChange={e => setFilterYear(e.target.value)} className='border border-gray-300 rounded px-3 py-2 text-sm'>
+          <option value="">Semua tahun</option>
+          {availableYears.map(year => (
+            <option value={year} key={year}>{year}</option>
+          ))}
+        </select>
+      </div>
 
+      <div className="overflow-x-auto pb-24">
         <table className="border-collapse text-sm mx-auto mt-8 table-fixed" style={{width: widths.reduce((a, b) => a + b, 0)}}>
           <thead>
             <tr className="text-left">
