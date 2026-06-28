@@ -134,7 +134,7 @@ export default function Dashboard() {
   }
 
   return (<>
-    <div className="max-w-5xl mx-auto mt-10 font-sans pb-16">
+    <div className="max-w-5xl mx-auto mt-4 sm:mt-10 font-sans pb-16">
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-2 mb-4 px-4">
         <div className='block'>
           <p>Login sebagai: {session?.user.email}</p>
@@ -184,7 +184,7 @@ export default function Dashboard() {
       <h2 className="font-semibold mb-2 text-center">Daftar Tagihan IPL</h2>
       {fetchError && <p className="text-red-600 text-center">Gagal fetch: {fetchError}</p>}
 
-      <div className="flex gap-2 mb-3 justify-center">
+      <div className="flex gap-2 mb-3 justify-center flex-wrap">
         <select name="filterUnit" id="filterUnit" value={filterUnit} onChange={e => setFilterUnit(e.target.value)} className='border border-gray-300 rounded px-3 py-2 text-sm'>
           <option value="">Semua unit</option>
           {availableUnits.map(code => (

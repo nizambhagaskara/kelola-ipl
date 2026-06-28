@@ -104,7 +104,7 @@ export function DueForm({editingDue, onSuccess, onCancelEdit}: Props) {
       </h3>
 
       <div className="flex flex-col gap-2">
-        <select value={unitId} onChange={(e) => setUnitId(e.target.value)} disabled={isEditing} className="border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100" name="unitId">
+        <select value={unitId} onChange={(e) => setUnitId(e.target.value)} disabled={isEditing} className="border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 text-sm sm:text-base" name="unitId">
           <option value="">Pilih unit</option>
           {units.map((u) => (
             <option key={u.id} value={u.id}>
@@ -114,12 +114,7 @@ export function DueForm({editingDue, onSuccess, onCancelEdit}: Props) {
         </select>
 
         <div className="flex gap-2">
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            disabled={isEditing}
-            className="border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 flex-1"
-          >
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} disabled={isEditing} className="border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 flex-1 text-sm sm:text-base">
             {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
               <option key={m} value={m}>
                 {new Date(2000, m - 1).toLocaleString('id-ID', { month: 'long' })}
@@ -127,12 +122,7 @@ export function DueForm({editingDue, onSuccess, onCancelEdit}: Props) {
             ))}
           </select>
 
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            disabled={isEditing}
-            className="border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 flex-1"
-          >
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} disabled={isEditing} className="border border-gray-300 rounded px-3 py-2 disabled:bg-gray-100 flex-1 text-sm sm:text-base">
             {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
               <option key={y} value={y}>
                 {y}
@@ -141,27 +131,15 @@ export function DueForm({editingDue, onSuccess, onCancelEdit}: Props) {
           </select>
         </div>
 
-        <input
-          type="number"
-          placeholder="Nominal tagihan"
-          value={amountDue}
-          onChange={(e) => setAmountDue(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-2"
-        />
+        <input type="number" placeholder="Nominal tagihan" value={amountDue} onChange={(e) => setAmountDue(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
 
-        <select value={status} onChange={(e) => setStatus(e.target.value as 'normal' | 'kosong' | 'lainnya')} className="border border-gray-300 rounded px-3 py-2" name="status">
+        <select value={status} onChange={(e) => setStatus(e.target.value as 'normal' | 'kosong' | 'lainnya')} className="border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" name="status">
           <option value="normal">Normal</option>
           <option value="kosong">Rumah kosong</option>
           <option value="lainnya">Lainnya</option>
         </select>
 
-        <input
-          type="text"
-          placeholder="Catatan (opsional)"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-2"
-        />
+        <input type="text" placeholder="Catatan (opsional)" value={note} onChange={(e) => setNote(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
 
@@ -171,13 +149,7 @@ export function DueForm({editingDue, onSuccess, onCancelEdit}: Props) {
           </button>
 
           {isEditing && (
-            <button
-              type="button"
-              onClick={onCancelEdit}
-              className="bg-gray-200 rounded px-3 py-2 hover:bg-gray-300"
-            >
-              Batal
-            </button>
+            <button type="button" onClick={onCancelEdit} className="bg-gray-200 rounded px-3 py-2 hover:bg-gray-300">Batal</button>
           )}
         </div>
       </div>

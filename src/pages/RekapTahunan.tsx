@@ -59,15 +59,15 @@ export default function RekapTahunan() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto mt-10 font-sans pb-16">
-      <div className="flex justify-between items-center mb-4">
+    <div className="max-w-5xl mx-auto mt-4 sm:mt-10 font-sans pb-16">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4 px-4">
         <h1 className="font-semibold text-lg">Rekap Tahunan</h1>
         <Link to="/" className="text-blue-600 hover:text-blue-700 underline">Kembali ke Dashboard</Link>
       </div>
 
       {fetchError && <p className="text-red-600">Gagal fetch: {fetchError}</p>}
 
-      <select name="filterYear" id="filterYear" value={filterYear} onChange={e => setFilterYear(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm mb-3">
+      <select name="filterYear" id="filterYear" value={filterYear} onChange={e => setFilterYear(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm mb-3 ml-4">
         <option value="">Semua tahun</option>
         {availableYears.map(y => (
           <option value={y} key={y}>

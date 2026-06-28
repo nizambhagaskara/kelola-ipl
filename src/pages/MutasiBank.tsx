@@ -71,15 +71,15 @@ export default function MutasiBank() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto mt-10 font-sans">
-      <div className="flex justify-between items-center mb-4">
+    <div className="max-w-5xl mx-auto mt-4 sm:mt-10 font-sans">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-10 px-4">
         <p>Login sebagai: {session?.user.email}</p>
         <Link to="/" className="text-blue-600 hover:underline">
           Kembali ke Dashboard
         </Link>
       </div>
 
-      <h2 className="font-semibold mb-2">Mutasi Bank</h2>
+      <h2 className="font-semibold mb-2 px-4">Mutasi Bank</h2>
       {fetchError && <p className="text-red-600">Gagal fetch: {fetchError}</p>}
 
       <div className="overflow-x-auto">

@@ -185,7 +185,7 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
       <h3 className="font-semibold mb-3">Tambah Transaksi</h3>
 
       <div className="flex flex-col gap-2">
-        <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="border border-gray-300 rounded px-3 py-2 cursor-pointer" name="categoryId">
+        <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="border border-gray-300 rounded px-3 py-2 cursor-pointer text-sm sm:text-base" name="categoryId">
           <option value="">Pilih Kategori</option>
           {categories.map(c => (
             <option value={c.id} key={c.id}>
@@ -198,7 +198,7 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
           <select value={unitId} onChange={e => {
             setUnitId(e.target.value);
             setAllocations({});
-          }} className="border border-gray-300 rounded px-3 py-2 cursor-pointer" name="unitId">
+          }} className="border border-gray-300 rounded px-3 py-2 cursor-pointer text-sm sm:text-base" name="unitId">
             <option value="">Pilih Unit</option>
             {units.map(u => (
               <option value={u.id} key={u.id}>{u.code}</option>
@@ -206,9 +206,9 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
           </select>
         )}
 
-        <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border border-gray-300 rounded px-3 py-2 cursor-pointer"/>
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border border-gray-300 rounded px-3 py-2 cursor-pointer text-sm sm:text-base"/>
         
-        <input type="number" placeholder="Nominal" value={amount} onChange={e => setAmount(e.target.value)} className="border border-gray-300 rounded px-3 py-2" />
+        <input type="number" placeholder="Nominal" value={amount} onChange={e => setAmount(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
 
         {selectedCategory?.requires_unit && (
           <div className="flex flex-col gap-2 text-sm py-3">
