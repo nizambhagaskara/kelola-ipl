@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useResizableColumns } from "../hooks/useResizableColumns";
+import formatRupiah from "../helpers/formatRupiah";
 
 type SummaryRow = {
   unit_code: string;
@@ -32,14 +33,6 @@ export default function RekapTahunan() {
 
     load();
   }, []);
-
-  function formatRupiah(value: number) {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(value);
-  }
 
   const availableYears = Array.from(new Set(rows.map(r => r.year))).sort();
 
@@ -82,7 +75,7 @@ export default function RekapTahunan() {
             <tr className="text-left">
               {['Blok', 'Tahun', 'Total Proyeksi', 'Total Realisasi', 'Outstanding'].map(
                 (label, i) => (
-                  <th key={label} className="relative p-2 overflow-hidden border-r border-gray-400" style={{width: widths[i]}}>
+                  <th key={label} className="relative p-2 overflow-hidden border-l border-gray-400" style={{width: widths[i]}}>
                     {label}
                     <div onMouseDown={e => {
                       e.preventDefault();
@@ -96,15 +89,15 @@ export default function RekapTahunan() {
           <tbody>
             {filteredRows.map(r => (
               <tr key={`${r.unit_code}-${r.year}`} className="border-b border-gray-200">
-                <td className="border-r border-gray-300 p-2 truncate" style={{width: widths[0]}}>{r.unit_code}</td>
-                <td className="border-r border-gray-300 p-2 truncate" style={{width: widths[1]}}>{r.year}</td>
-                <td className="border-r border-gray-300 p-2 truncate" style={{width: widths[2]}}>
+                <td className="border-l border-gray-300 p-2 truncate" style={{width: widths[0]}}>{r.unit_code}</td>
+                <td className="border-l border-gray-300 p-2 truncate" style={{width: widths[1]}}>{r.year}</td>
+                <td className="border-l border-gray-300 p-2 truncate" style={{width: widths[2]}}>
                   {formatRupiah(r.total_proyeksi)}
                 </td>
-                <td className="border-r border-gray-300 p-2 truncate" style={{width: widths[3]}}>
+                <td className="border-l border-gray-300 p-2 truncate" style={{width: widths[3]}}>
                   {formatRupiah(r.total_realisasi)}
                 </td>
-                <td className="p-2 truncate" style={{width: widths[4]}}>
+                <td className="border-l border-gray-300 p-2 truncate" style={{width: widths[4]}}>
                   {formatRupiah(r.outstanding)}
                 </td>
               </tr>
@@ -113,14 +106,14 @@ export default function RekapTahunan() {
           <tfoot>
             <tr className="border-t-2 border-gray-500 font-semibold">
               <td className="border-r border-gray-300 p-2" style={{width: widths[0]}}></td>
-              <td className="border-r border-gray-300 p-2 truncate" style={{width: widths[1]}}>Total</td>
-              <td className="border-r border-gray-300 p-2" style={{width: widths[2]}}>
+              <td className="border-r border-b border-gray-300 p-2 truncate" style={{width: widths[1]}}>Total</td>
+              <td className="border-r border-b border-gray-300 p-2" style={{width: widths[2]}}>
                 {formatRupiah(totals.proyeksi)}
               </td>
-              <td className="border-r border-gray-300 p-2" style={{width: widths[3]}}>
+              <td className="border-r border-b border-gray-300 p-2" style={{width: widths[3]}}>
                 {formatRupiah(totals.realisasi)}
               </td>
-              <td className="p-2" style={{width: widths[4]}}>
+              <td className="p-2 border-b border-gray-300" style={{width: widths[4]}}>
                 {formatRupiah(totals.outstanding)}
               </td>
             </tr>

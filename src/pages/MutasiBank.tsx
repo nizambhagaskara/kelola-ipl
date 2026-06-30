@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { useResizableColumns } from "../hooks/useResizableColumns";
+import { Modal } from "../components/Modal";
+import { EditTransactionForm, type EditableTransaction } from "../components/EditTransactionForm";
+
+import formatPeriod from "../helpers/formatPeriod";
+import formatRupiah from "../helpers/formatRupiah";
 
 type LedgerRow = {
   id: string;
@@ -13,16 +18,38 @@ type LedgerRow = {
   amount: number;
   description: string | null;
   running_balance: number;
+  unallocated: number | null;
+}
+
+type UnidentifiedTx = {
+  id: string;
+  transaction_date: string;
+  amount: number;
+  description: string | null;
+}
+
+type Unit = {
+  id: string;
+  code: string;
 }
 
 export default function MutasiBank() {
   const { session } = useAuth();
+
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [unidentifiedTx, setUnidentifiedTx] = useState<UnidentifiedTx[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [identifyingTx, setIdentifyingTx] = useState<UnidentifiedTx | null>(null);
+  const [selectedUnitId, setSelectedUnitId] = useState('');
+  const [identifyError, setIdentifyError] = useState<string | null>(null);
+  const [editingTx, setEditingTx] = useState<EditableTransaction | null>(null);
 
-  const {widths, startResize} = useResizableColumns([180, 160, 80, 120, 120, 100]);
+  // resizable table columns width config
+  const {widths, startResize} = useResizableColumns([180, 160, 80, 120, 120, 120, 140, 100]);
 
+  // effects
   useEffect(() => {
     async function load() {
       const {data, error} = await supabase
@@ -40,20 +67,49 @@ export default function MutasiBank() {
     load();
   }, [refreshKey]);
 
-  function formatDate(dateStr: string) {
-    // dateStr format: "YYYY-MM-DD"
-    const [year, month, date] = dateStr.split('-');
-    const monthName = new Date(2000, Number(month) - 1).toLocaleString('id-ID', { month: "long" });
-    return `${date} ${monthName}, ${year}`;
-  }
+  useEffect(() => {
+    supabase
+      .from('units')
+      .select('id, code')
+      .order('code')
+      .then(({data}) => setUnits(data ?? []));
+  }, []);
 
+  useEffect(() => {
+    async function loadUnidentified() {
+      const { data: categoryData } = await supabase
+        .from('account_categories')
+        .select('id')
+        .eq('name', 'Revenue IPL - Belum Teridentifikasi')
+        .single();
+
+      if (!categoryData) return;
+
+      const { data } = await supabase
+        .from('bank_transactions')
+        .select('id, transaction_date, amount, description')
+        .eq('category_id', categoryData.id)
+        .is('deleted_at', null)
+        .order('transaction_date', {ascending: false});
+
+      setUnidentifiedTx(data ?? []);
+    }
+
+    loadUnidentified();
+  }, [refreshKey]);
+
+  // local helper functions
   async function handleDelete(row: LedgerRow) {
     const confirmed = window.confirm(
-      `Hapus transaksi "${row.category}" tanggal ${formatDate(row.transaction_date)} sebesar ${formatRupiah(row.amount)}?`
+      `Hapus transaksi "${row.category}" tanggal ${formatPeriod(row.transaction_date), true} sebesar ${formatRupiah(row.amount)}? (Bisa direstore dari halaman Sampah)`
     );
     if (!confirmed) return;
 
-    const {error} = await supabase.from('bank_transactions').delete().eq('id', row.id);
+    const {error} = await supabase
+      .from('bank_transactions')
+      .update({deleted_at: new Date().toISOString()})
+      .eq('id', row.id);
+
     if (error) {
       alert('Gagal hapus: ' + error.message);
       return;
@@ -62,12 +118,50 @@ export default function MutasiBank() {
     setRefreshKey(k => k + 1);
   }
 
-  function formatRupiah(value: number) {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(value);
+  function startIdentify(tx: UnidentifiedTx) {
+    setIdentifyingTx(tx);
+    setSelectedUnitId('');
+    setIdentifyError(null);
+  }
+
+  async function handleIdentifySubmit(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!identifyingTx) return;
+
+    if (!selectedUnitId) {
+      setIdentifyError('Pilih unit dulu');
+      return;
+    }
+
+    const { data, error } = await supabase.rpc('identify_transaction', {
+      p_transaction_id: identifyingTx.id,
+      p_unit_id: selectedUnitId,
+    });
+
+    console.log('rpc result:', { data, error });
+
+    if (error) {
+      setIdentifyError(error.message);
+      return;
+    }
+
+    setIdentifyingTx(null);
+    setRefreshKey(k => k + 1);
+  }
+
+  async function startEditTx(id: string) {
+    const { data, error } = await supabase
+      .from('bank_transactions')
+      .select('id, transaction_date, category_id, unit_id, amount, description, auto_allocate')
+      .eq('id', id)
+      .single();
+
+      if (error || !data) {
+        alert('Gagal ambil data transaksi.');
+        return;
+      }
+
+      setEditingTx(data as EditableTransaction);
   }
 
   return (
@@ -79,6 +173,60 @@ export default function MutasiBank() {
         </Link>
       </div>
 
+      {unidentifiedTx.length > 0 && (
+        <div className="border border-amber-300 bg-amber-50 rounded p-3 mb-6">
+          <h3 className="font-semibold mb-2 text-sm">Transaksi Belum Teridentifikasi</h3>
+          {unidentifiedTx.map((tx) => (
+            <div key={tx.id} className="flex justify-between items-center text-sm py-1">
+              <span>{formatPeriod(tx.transaction_date, true)} — {formatRupiah(tx.amount)}</span>
+
+              {tx.description && (
+                <p className="text-xs text-gray-500 mt-0.5">{tx.description}</p>
+              )}
+              <button onClick={() => startIdentify(tx)} className="text-blue-600 hover:underline text-xs ml-4 shrink-0">
+                Identifikasi
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={identifyingTx !== null} onClose={() => setIdentifyingTx(null)}>
+        <form onSubmit={handleIdentifySubmit} className="p-4">
+          <h3 className="font-semibold mb-3">
+            Identifikasi Transaksi {identifyingTx && formatRupiah(identifyingTx.amount)}
+          </h3>
+          <select
+            value={selectedUnitId}
+            onChange={(e) => setSelectedUnitId(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 w-full mb-2"
+          >
+            <option value="">Pilih unit</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.code}
+              </option>
+            ))}
+          </select>
+          {identifyError && <p className="text-red-600 text-sm mb-2">{identifyError}</p>}
+          <button
+            type="submit"
+            className="bg-gray-900 text-white rounded px-3 py-2 hover:bg-gray-700 w-full"
+          >
+            Konfirmasi
+          </button>
+        </form>
+      </Modal>
+
+      <Modal open={editingTx !== null} onClose={() => setEditingTx(null)}>
+        {editingTx && (
+          <EditTransactionForm tx={editingTx} onSuccess={() => {
+            setEditingTx(null);
+            setRefreshKey(k => k + 1);
+          }} onCancel={() => setEditingTx(null)} />
+        )}
+      </Modal>
+
       <h2 className="font-semibold mb-2 px-4">Mutasi Bank</h2>
       {fetchError && <p className="text-red-600">Gagal fetch: {fetchError}</p>}
 
@@ -86,7 +234,7 @@ export default function MutasiBank() {
         <table className="border-collapse text-sm mx-auto table-fixed" style={{ width: widths.reduce((a, b) => a + b, 0) }}>
           <thead>
             <tr className="text-left">
-              {['Tanggal', 'Kategori', 'Unit', 'Nominal', 'Saldo', '  '].map((label, i) => (
+              {['Tanggal', 'Kategori', 'Unit', 'Nominal', 'Saldo', 'Catatan', 'Belum Teralokasi (lebihan bayar)'].map((label, i) => (
                 <th key={label} style={{ width: widths[i], position: 'relative' }} className="p-2 overflow-hidden border-l border-gray-400">
                   {label}
                   <div onMouseDown={(e) => {
@@ -101,7 +249,7 @@ export default function MutasiBank() {
             {rows.map(row => (
               <tr key={row.id} className="border-b border-gray-200">
                 <td className="border-l border-gray-300 p-2 truncate" style={{ width: widths[0] }}>
-                  {formatDate(row.transaction_date)}
+                  {formatPeriod(row.transaction_date, true)}
                 </td>
                 <td className="border-l border-gray-300 p-2 truncate" style={{ width: widths[1] }}>
                   {row.category}
@@ -115,8 +263,21 @@ export default function MutasiBank() {
                 <td className="p-2 truncate border-l border-gray-300" style={{ width: widths[4] }}>
                   {formatRupiah(row.running_balance)}
                 </td>
-                <td className="p-2 border-l border-gray-300" style={{width: widths[5]}}>
+                <td className="p-2 truncate border-l border-gray-300" style={{ width: widths[5] }}>
+                  {row.description}
+                </td>
+                <td className="p-2 truncate border-l border-gray-300" style={{width: widths[6]}}>
+                  {row.unallocated === null ? (
+                    '-'
+                  ) : row.unallocated > 0 ? (
+                    <span className="text-amber-600">+ {formatRupiah(row.unallocated)}</span>
+                  ) : (
+                    formatRupiah(row.unallocated)
+                  )}
+                </td>
+                <td className="p-2" style={{width: widths[7]}}>
                   <button onClick={() => handleDelete(row)} className="text-red-600 hover:underline text-xs">Hapus</button>
+                  <button onClick={() => startEditTx(row.id)} className="text-blue-600 hover:underline text-xs ml-2">Edit</button>
                 </td>
               </tr>
             ))}

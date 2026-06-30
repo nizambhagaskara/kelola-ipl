@@ -1,5 +1,6 @@
 import { useEffect, useState, type SyntheticEvent } from "react";
 import { supabase } from "../lib/supabase";
+import formatPeriod from "../helpers/formatPeriod";
 
 type Category = {
   id: string;
@@ -19,13 +20,6 @@ type OutstandingDue = {
   outstanding: number;
 }
 
-function formatPeriod(period: string) {
-  const [year, month] = period.split('-');
-  const monthName = new Date(2000, Number(month) - 1).toLocaleString('id-ID', { month: "long" });
-
-  return `${monthName}, ${year}`;
-}
-
 export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -36,6 +30,7 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
   const [amount, setAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [description, setDescription] = useState('');
 
   const [allocationMode, setAllocationMode] = useState<'auto' | 'manual'>('auto');
   const [outstandingDues, setOutstandingDues] = useState<OutstandingDue[]>([]);
@@ -133,13 +128,16 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
 
     setSubmitting(true);
 
-    const {data: insertedTx, error: txError} = await supabase.from('bank_transactions').insert({
+    const {data: insertedTx, error: txError} = await supabase
+      .from('bank_transactions')
+      .insert({
       transaction_date: date,
       category_id: categoryId,
       unit_id: selectedCategory?.requires_unit ? unitId : null,
       direction: selectedCategory?.direction,
       amount: Number(amount),
       auto_allocate: !isManual,
+      description: description || null
     }).select('id').single();
 
     if(txError || !insertedTx) {
@@ -177,6 +175,7 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
     setAmount('');
     setAllocationMode('auto');
     setAllocations({});
+    setDescription('');
     onSuccess();
   }
 
@@ -209,6 +208,8 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border border-gray-300 rounded px-3 py-2 cursor-pointer text-sm sm:text-base"/>
         
         <input type="number" placeholder="Nominal" value={amount} onChange={e => setAmount(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm sm:text-base" />
+
+        <input type="text" name="optional-notes" id="optional-notes" placeholder="Catatan (opsional, misal: Transfer BCA Mobile a.n. xxxxx)" value={description} onChange={e => setDescription(e.target.value)} className="border border-gray-300 rounded px-3 py-2 cursor-pointer text-sm sm:text-base" />
 
         {selectedCategory?.requires_unit && (
           <div className="flex flex-col gap-2 text-sm py-3">
@@ -258,7 +259,7 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
             {Object.keys(allocations).length > 0 && (
               <p className="text-sm mt-2">
                 Total dialokasikan: Rp{totalAllocated.toLocaleString('id-ID')} dari Rp{(Number(amount) || 0).toLocaleString('id-ID')} ditransfer {totalAllocated < Number(amount) && (
-                  <span className="text-gray-500"> (sisanya nunggu tagihan baru)</span>
+                  <span className="text-gray-500"> (sisanya menunggu tagihan baru)</span>
                 )}
               </p>
             )}

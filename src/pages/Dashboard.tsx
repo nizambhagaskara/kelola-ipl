@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom';
 import { DueForm, type EditableDue } from '../components/Dueform';
 import { useResizableColumns } from '../hooks/useResizableColumns';
 import { Modal } from '../components/Modal';
+import formatRupiah from '../helpers/formatRupiah';
+import formatPeriod from '../helpers/formatPeriod';
 
 type Due = {
   id: string;
@@ -63,6 +65,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from('ipl_dues')
         .select('id, unit_id, period, amount_due, amount_paid, status, note, units(code)')
+        .is('deleted_at', null)
         .order('period');
 
       if (error) {
@@ -91,29 +94,17 @@ export default function Dashboard() {
     await supabase.auth.signOut();
   }
 
-  function formatRupiah(value: number) {
-    return Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(value);
-  }
-
-  function formatPeriod(period: string) {
-    const [year, month] = period.split('-');
-    const monthName = new Date(2000, Number(month) - 1).toLocaleString('id-ID', { month: "long" });
-    return `${monthName}, ${year}`;
-  }
-
   async function handleDelete(due: Due) {
     const confirmed = window.confirm(
-      due.amount_paid > 0 
-        ? `Tagihan ${due.units?.code} periode ${formatPeriod(due.period)} sudah ada pembayaran (${formatRupiah(due.amount_paid)}). Hapus tetap akan melepas alokasi pembayaran itu (uangnya tidak hilang, tapi jadi belum teralokasi lagi). Lanjut hapus?`
-        : `Hapus tagihan ${due.units?.code} periode ${formatPeriod(due.period)}?`
+      `Hapus tagihan ${due.units?.code} periode ${formatPeriod(due.period)}? (Bisa direstore dari halaman Sampah)`
     );
     if (!confirmed) return;
 
-    const {error} = await supabase.from('ipl_dues').delete().eq('id', due.id);
+    const {error} = await supabase
+      .from('ipl_dues')
+      .update({deleted_at: new Date().toISOString()})
+      .eq('id', due.id);
+
     if (error) {
       alert('Gagal hapus: ' + error.message);
       return;
@@ -134,7 +125,7 @@ export default function Dashboard() {
   }
 
   return (<>
-    <div className="max-w-5xl mx-auto mt-4 sm:mt-10 font-sans pb-16">
+    <div className="max-w-6xl mx-auto mt-4 sm:mt-10 font-sans pb-16">
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-2 mb-4 px-4">
         <div className='block'>
           <p>Login sebagai: {session?.user.email}</p>
@@ -149,14 +140,17 @@ export default function Dashboard() {
             </p>
           )}
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+        <div className="flex flex-col text-sm md:text-base min-[700px]:flex-row gap-4 min-[700px]:items-center">
           <button onClick={() => setTransactionModalOpen(true)} className='bg-gray-900 text-white rounded px-3 py-2 hover:bg-gray-700'>+ Transaksi</button>
           <button onClick={() => {
             setEditingDue(null);
             setDueModalOpen(true);
           }} className='bg-gray-900 text-white rounded px-3 py-2 hover:bg-gray-700'>+ Tagihan</button>
-          <Link to="/rekap" className="text-blue-600 hover:text-blue-700 underline">Rekap Tahunan</Link>
-          <Link to="/mutasi" className="text-blue-600 hover:text-blue-700 underline">Lihat Mutasi Bank</Link>
+          <div className='flex flex-col min-[700px]:flex-row text-white gap-4 font-semibold text-center'>
+            <Link to="/rekap" className="bg-blue-600 hover:bg-blue-700 rounded px-3 py-2">Rekap Tahunan</Link>
+            <Link to="/mutasi" className="bg-blue-600 hover:bg-blue-700 rounded px-3 py-2">Lihat Mutasi Bank</Link>
+            <Link to="/sampah" className="bg-blue-600 hover:bg-blue-700 rounded px-3 py-2">Sampah</Link>
+          </div>
           <button onClick={handleLogout} className="bg-gray-200 rounded px-3 py-2 hover:bg-gray-300">Logout</button>
         </div>
       </div>
@@ -231,7 +225,7 @@ export default function Dashboard() {
               return (
                 <tr key={due.id} className="border-b border-gray-400">
                   <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[0] }}>{due.units?.code}</td>
-                  <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[1] }}>{formatPeriod(due.period)}</td>
+                  <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[1] }}>{formatPeriod(due.period, false)}</td>
                   <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[2] }}>{formatRupiah(due.amount_due)}</td>
                   <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[3] }}>{formatRupiah(due.amount_paid)}</td>
                   <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[4] }}>
@@ -243,7 +237,7 @@ export default function Dashboard() {
                       <span className="text-green-600 text-xs ml-1">(lebih bayar)</span>
                     )}
                   </td>
-                  <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[5] }}>{due.status}</td>
+                  <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[5] }}>{due.status.charAt(0).toUpperCase() + due.status.slice(1)}</td>
                   <td className="border-l border-gray-400 p-2 truncate" style={{ width: widths[6] }}>{due.note}</td>
                   <td className="border-l border-gray-400 p-2" style={{ width: widths[7] }}>
                     <button onClick={() => startEdit(due)} className="text-blue-600 hover:underline text-xs">
