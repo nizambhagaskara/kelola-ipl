@@ -41,8 +41,10 @@ export function DueForm({editingDue, onSuccess, onCancelEdit}: Props) {
     supabase
       .from('units')
       .select('id, code')
-      .order('code')
-      .then(({data}) => setUnits(data ?? []));
+      .then(({ data }) => {
+        const sorted = (data ?? []).sort((a, b) => a.code.localeCompare(b.code, undefined, {numeric: true}));
+        setUnits(sorted);
+      });
   }, []);
 
   async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {

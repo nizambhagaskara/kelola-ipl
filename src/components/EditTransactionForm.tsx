@@ -51,8 +51,10 @@ export function EditTransactionForm({ tx, onSuccess, onCancel }: Props) {
     supabase
       .from('units')
       .select('id, code')
-      .order('code')
-      .then(({data}) => setUnits(data ?? []))
+      .then(({ data }) => {
+        const sorted = (data ?? []).sort((a, b) => a.code.localeCompare(b.code, undefined, {numeric: true}));
+        setUnits(sorted);
+      });
   }, []);
 
   const selectedCategory = categories.find(c => c.id === categoryId);
@@ -124,7 +126,7 @@ export function EditTransactionForm({ tx, onSuccess, onCancel }: Props) {
 
         <input type="number" name="input-amount" id="input-amount" value={amount} placeholder="Nominal" onChange={e => setAmount(e.target.value)} className="border border-gray-300 rounded px-3 py-2" />
 
-        <input type="text" name="input-description" id="input-description" value={description} onChange={e => setDescription(e.target.value)} className="border border-gray-300 rounded px-3 py-2" />
+        <input type="text" name="input-description" id="input-description" value={description} onChange={e => setDescription(e.target.value)} className="border border-gray-300 rounded px-3 py-2" placeholder="Catatan (opsional)" />
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
 

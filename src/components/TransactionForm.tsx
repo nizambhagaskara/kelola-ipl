@@ -46,8 +46,10 @@ export function TransactionForm({onSuccess}: {onSuccess: () => void}) {
     supabase
       .from('units')
       .select('id, code')
-      .order('code')
-      .then(({data}) => setUnits(data ?? []));
+      .then(({ data }) => {
+        const sorted = (data ?? []).sort((a, b) => a.code.localeCompare(b.code, undefined, {numeric: true}));
+        setUnits(sorted);
+      });
   }, []);
 
   const selectedCategory = categories.find(c => c.id === categoryId);

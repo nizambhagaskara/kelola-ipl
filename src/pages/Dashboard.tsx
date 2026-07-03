@@ -45,9 +45,9 @@ export default function Dashboard() {
   
   const [cronLog, setCronLog] = useState<CronLog | null>(null);
 
-  const availableUnits = Array.from(
-    new Set(dues.map(d => d.units?.code).filter(Boolean))
-  ).sort() as string[];
+  const availableUnits = (
+    Array.from(new Set(dues.map(d => d.units?.code).filter(Boolean))) as string[]
+  ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   
   const availableYears = Array.from(
     new Set(dues.map(d => d.period.slice(0, 4)))
@@ -66,7 +66,8 @@ export default function Dashboard() {
         .from('ipl_dues')
         .select('id, unit_id, period, amount_due, amount_paid, status, note, units(code)')
         .is('deleted_at', null)
-        .order('period');
+        .order('period')
+        .order('units(code)')
 
       if (error) {
         setFetchError(error.message);
@@ -141,11 +142,11 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex flex-col text-sm md:text-base min-[700px]:flex-row gap-4 min-[700px]:items-center">
-          <button onClick={() => setTransactionModalOpen(true)} className='bg-gray-900 text-white rounded px-3 py-2 hover:bg-gray-700'>+ Transaksi</button>
           <button onClick={() => {
             setEditingDue(null);
             setDueModalOpen(true);
           }} className='bg-gray-900 text-white rounded px-3 py-2 hover:bg-gray-700'>+ Tagihan</button>
+          <button onClick={() => setTransactionModalOpen(true)} className='bg-gray-900 text-white rounded px-3 py-2 hover:bg-gray-700'>+ Transaksi</button>
           <div className='flex flex-col min-[700px]:flex-row text-white gap-4 font-semibold text-center'>
             <Link to="/rekap" className="bg-blue-600 hover:bg-blue-700 rounded px-3 py-2">Rekap Tahunan</Link>
             <Link to="/mutasi" className="bg-blue-600 hover:bg-blue-700 rounded px-3 py-2">Lihat Mutasi Bank</Link>
@@ -219,7 +220,17 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {filteredDues.map(due => {
+            {[...filteredDues]
+            .sort((a, b) => {
+              const codeCompare = (a.units?.code ?? '').localeCompare(
+                b.units?.code ?? '',
+                undefined,
+                { numeric: true }
+              );
+              if (codeCompare !== 0) return codeCompare;
+              return a.period.localeCompare(b.period);
+            })
+            .map((due) => {
               const outstanding = due.amount_due - due.amount_paid;
 
               return (
