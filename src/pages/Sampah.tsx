@@ -30,8 +30,8 @@ export default function Sampah() {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const duesWidth = useResizableColumns([80, 110, 120, 120, 80]);
-  const txWidth = useResizableColumns([110, 140, 80, 130, 80]);
+  const duesWidth = useResizableColumns([140, 110, 120, 120, 170]);
+  const txWidth = useResizableColumns([140, 140, 80, 130, 170]);
 
   useEffect(() => {
     async function load() {
@@ -84,6 +84,30 @@ export default function Sampah() {
     setRefreshKey(k => k + 1);
   }
 
+  async function deleteDuePermanently(id: string) {
+    const confirmDelete = window.confirm('Apakah Anda yakin ingin menghapus tagihan ini secara permanen? Tindakan ini tidak dapat dibatalkan.');
+    if (!confirmDelete) return;
+
+    const { error } = await supabase.from('ipl_dues').delete().eq('id', id);
+    if (error) {
+      alert('Gagal menghapus permanen: ' + error.message);
+      return;
+    }
+    setRefreshKey(k => k + 1);
+  }
+
+  async function deleteTransactionPermanently(id: string) {
+    const confirmDelete = window.confirm('Apakah Anda yakin ingin menghapus transaksi ini secara permanen? Tindakan ini tidak dapat dibatalkan.');
+    if (!confirmDelete) return;
+
+    const { error } = await supabase.from('bank_transactions').delete().eq('id', id);
+    if (error) {
+      alert('Gagal menghapus permanen: ' + error.message);
+      return;
+    }
+    setRefreshKey(k => k + 1);
+  }
+
   return (
     <div className="max-w-5xl mx-auto mt-10 font-sans pb-16 px-4">
       <div className="flex flex-wrap flex-row justify-between items-center gap-2 mb-8">
@@ -124,6 +148,7 @@ export default function Sampah() {
                   <td className="p-2 truncate border-l border-gray-300" style={{width: duesWidth.widths[3]}}>{formatRupiah(due.amount_paid)}</td>
                   <td className="p-2 truncate border-l border-gray-300" style={{width: duesWidth.widths[4]}}>
                     <button onClick={() => restoreDue(due.id)} className="text-green-600 hover:underline text-xs">Restore</button>
+                    <button onClick={() => deleteDuePermanently(due.id)} className="text-red-600 hover:underline text-xs ml-2">Hapus Permanen</button>
                   </td>
                 </tr>
               ))}
@@ -165,6 +190,7 @@ export default function Sampah() {
                   </td>
                   <td className="p-2 truncate border-l border-gray-300" style={{width: txWidth.widths[4]}}>
                     <button onClick={() => restoreTransaction(tx.id)} className="text-green-600 hover:underline text-xs">Restore</button>
+                    <button onClick={() => deleteTransactionPermanently(tx.id)} className="text-red-600 hover:underline text-xs ml-2">Hapus Permanen</button>
                   </td>
                 </tr>
               ))}

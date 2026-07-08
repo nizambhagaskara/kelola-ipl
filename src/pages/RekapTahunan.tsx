@@ -55,7 +55,7 @@ export default function RekapTahunan() {
     <div className="max-w-5xl mx-auto mt-4 sm:mt-10 font-sans pb-16">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4 px-4">
         <h1 className="font-semibold text-lg">Rekap Tahunan</h1>
-        <Link to="/" className="text-blue-600 hover:text-blue-700 underline">Kembali ke Dashboard</Link>
+        <Link to='/' className="bg-blue-600 hover:bg-blue-700 rounded px-3 py-2 text-white font-semibold">Dashboard</Link>
       </div>
 
       {fetchError && <p className="text-red-600">Gagal fetch: {fetchError}</p>}

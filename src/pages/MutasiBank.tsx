@@ -1,7 +1,5 @@
 import { useEffect, useState, type SyntheticEvent } from "react";
-import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { useAuth } from "../hooks/useAuth";
 import { useResizableColumns } from "../hooks/useResizableColumns";
 import { Modal } from "../components/Modal";
 import { EditTransactionForm, type EditableTransaction } from "../components/EditTransactionForm";
@@ -41,7 +39,6 @@ type OutstandingDueForAlloc = {
 }
 
 export default function MutasiBank() {
-  const { session } = useAuth();
 
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -54,7 +51,7 @@ export default function MutasiBank() {
   const [editingTx, setEditingTx] = useState<EditableTransaction | null>(null);
 
   // resizable table columns width config
-  const {widths, startResize} = useResizableColumns([180, 160, 80, 120, 120, 120, 160, 100]);
+  const {widths, startResize} = useResizableColumns([20, 180, 160, 80, 120, 120, 160, 160]);
 
   const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [allocatingRow, setAllocatingRow] = useState<LedgerRow | null>(null);
@@ -65,6 +62,11 @@ export default function MutasiBank() {
   const [filterYear, setFilterYear] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterCategory, setFilterCategory] = useState(''); 
+
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // effects
   useEffect(() => {
@@ -117,24 +119,6 @@ export default function MutasiBank() {
   }, [refreshKey]);
 
   // local helper functions
-  async function handleDelete(row: LedgerRow) {
-    const confirmed = window.confirm(
-      `Hapus transaksi "${row.category}" tanggal ${formatPeriod(row.transaction_date), true} sebesar ${formatRupiah(row.amount)}? (Bisa direstore dari halaman Sampah)`
-    );
-    if (!confirmed) return;
-
-    const {error} = await supabase
-      .from('bank_transactions')
-      .update({deleted_at: new Date().toISOString()})
-      .eq('id', row.id);
-
-    if (error) {
-      alert('Gagal hapus: ' + error.message);
-      return;
-    }
-
-    setRefreshKey(k => k + 1);
-  }
 
   function startIdentify(tx: UnidentifiedTx) {
     setIdentifyingTx(tx);
@@ -259,6 +243,44 @@ export default function MutasiBank() {
     return Object.values(allocs).reduce((sum, v) => sum + (Number(v) || 0), 0);
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    })
+  }
+
+  function toggleSelectAll(pageRows: LedgerRow[], checked: boolean) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      for (const row of pageRows) {
+        if (checked) next.add(row.id);
+        else next.delete(row.id);
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    const confirmed = window.confirm(`Hapus ${selectedIds.size} transaksi terpilih? (Bisa direstore dari halaman Sampah)`);
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from('bank_transactions')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', Array.from(selectedIds));
+
+    if (error) {
+      alert(`Gagal hapus: ${error.message}`);
+      return;
+    }
+
+    setSelectedIds(new Set());
+    setRefreshKey(k => k + 1);
+  }
+
   const totalAllocated = totalAllocating(allocations);
 
   const availableUnits = (
@@ -279,32 +301,29 @@ export default function MutasiBank() {
     return true;
   });
 
+  const paginatedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
-    <div className="max-w-5xl mx-auto mt-4 sm:mt-10 font-sans">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-10 px-4">
-        <p>Login sebagai: {session?.user.email}</p>
-        <Link to="/" className="text-blue-600 hover:underline">
-          Kembali ke Dashboard
-        </Link>
+    <div className="max-w-6xl mx-auto mt-4 sm:mt-10 font-sans pl-6 lg:pl-0">
+      <div className="pr-6">
+        {unidentifiedTx.length > 0 && (
+          <div className="border border-amber-300 bg-amber-50 rounded p-3 mb-6">
+            <h3 className="font-semibold mb-2 text-sm">Transaksi Belum Teridentifikasi</h3>
+            {unidentifiedTx.map((tx) => (
+              <div key={tx.id} className="flex justify-between items-center text-sm py-1">
+                <span>{formatPeriod(tx.transaction_date, true)} — {formatRupiah(tx.amount)}</span>
+
+                {tx.description && (
+                  <p className="text-xs text-gray-500 mt-0.5">{tx.description}</p>
+                )}
+                <button onClick={() => startIdentify(tx)} className="text-blue-600 hover:underline text-xs ml-4 shrink-0">
+                  Identifikasi
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      {unidentifiedTx.length > 0 && (
-        <div className="border border-amber-300 bg-amber-50 rounded p-3 mb-6">
-          <h3 className="font-semibold mb-2 text-sm">Transaksi Belum Teridentifikasi</h3>
-          {unidentifiedTx.map((tx) => (
-            <div key={tx.id} className="flex justify-between items-center text-sm py-1">
-              <span>{formatPeriod(tx.transaction_date, true)} — {formatRupiah(tx.amount)}</span>
-
-              {tx.description && (
-                <p className="text-xs text-gray-500 mt-0.5">{tx.description}</p>
-              )}
-              <button onClick={() => startIdentify(tx)} className="text-blue-600 hover:underline text-xs ml-4 shrink-0">
-                Identifikasi
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
 
       <Modal open={identifyingTx !== null} onClose={() => setIdentifyingTx(null)}>
         <form onSubmit={handleIdentifySubmit} className="p-4">
@@ -317,7 +336,7 @@ export default function MutasiBank() {
             className="border border-gray-300 rounded px-3 py-2 w-full mb-2"
           >
             <option value="">Pilih unit</option>
-            {units.map((u) => (
+            {units.map(u => (
               <option key={u.id} value={u.id}>
                 {u.code}
               </option>
@@ -390,7 +409,10 @@ export default function MutasiBank() {
       <div className="flex flex-wrap gap-2 mb-6">
         <select
           value={filterUnit}
-          onChange={(e) => setFilterUnit(e.target.value)}
+          onChange={(e) => {
+            setFilterUnit(e.target.value);
+            setPage(1);
+          }}
           className="border border-gray-300 rounded px-3 py-2 text-sm"
         >
           <option value="">Semua unit</option>
@@ -401,7 +423,10 @@ export default function MutasiBank() {
 
         <select
           value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
+          onChange={(e) => {
+            setFilterCategory(e.target.value);
+            setPage(1);
+          }}
           className="border border-gray-300 rounded px-3 py-2 text-sm"
         >
           <option value="">Semua kategori</option>
@@ -412,7 +437,10 @@ export default function MutasiBank() {
 
         <select
           value={filterYear}
-          onChange={(e) => setFilterYear(e.target.value)}
+          onChange={(e) => {
+            setFilterYear(e.target.value);
+            setPage(1);
+          }}
           className="border border-gray-300 rounded px-3 py-2 text-sm"
         >
           <option value="">Semua tahun</option>
@@ -423,7 +451,10 @@ export default function MutasiBank() {
 
         <select
           value={filterMonth}
-          onChange={(e) => setFilterMonth(e.target.value)}
+          onChange={(e) => {
+            setFilterMonth(e.target.value);
+            setPage(1);
+          }}
           className="border border-gray-300 rounded px-3 py-2 text-sm"
         >
           <option value="">Semua bulan</option>
@@ -435,63 +466,97 @@ export default function MutasiBank() {
         </select>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="border-collapse text-sm mx-auto table-fixed" style={{ width: widths.reduce((a, b) => a + b, 0) }}>
-          <thead>
-            <tr className="text-left">
-              {['Tanggal', 'Kategori', 'Unit', 'Nominal', 'Saldo', 'Catatan', 'Belum Teralokasi (lebihan bayar)'].map((label, i) => (
-                <th key={label} style={{ width: widths[i], position: 'relative' }} className="p-2 overflow-hidden border-l border-gray-400">
-                  {label}
-                  <div onMouseDown={(e) => {
-                      e.preventDefault();
-                      startResize(i, e.clientX);
-                    }} className="absolute top-0 right-0 h-full w-1 cursor-col-resize hover:bg-gray-400" />
+      <div className="w-full">
+        <div className={`w-full flex justify-center items-center transition-opacity duration-200 ease-in-out ${selectedIds.size > 0 ? 'opacity-100' : 'opacity-0'}`}>
+          <div className='flex justify-between items-end w-full max-w-5xl'>
+            <span>{selectedIds.size} tagihan dipilih</span>
+
+            <div className='flex gap-2 px-6'>
+              {selectedIds.size === 1 && (
+                <button onClick={() => startEditTx(Array.from(selectedIds)[0])} className='bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded font-semibold disabled:pointer-events-none disabled:cursor-default'>Edit</button>
+              )}
+              <button onClick={handleBulkDelete} className='bg-red-600 text-white hover:bg-red-700 px-3 py-2 rounded font-semibold disabled:pointer-events-none disabled:cursor-default' disabled={selectedIds.size === 0}>Hapus</button>
+              <button onClick={() => setSelectedIds(new Set())} className='bg-gray-500 text-white hover:bg-gray-600 px-3 py-2 rounded font-semibold disabled:pointer-events-none disabled:cursor-default' disabled={selectedIds.size === 0}>Batal</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto pb-24 pt-8">
+          <table className="border-collapse text-sm mx-auto table-fixed" style={{ width: widths.reduce((a, b) => a + b, 0) }}>
+            <thead>
+              <tr className="text-left">
+                <th className='p-2 border-l border-gray-400 text-center w-12'>
+                  <input type="checkbox" name="selectAllRow" id="selectAllRow" checked={paginatedRows.length > 0 && paginatedRows.every(d => selectedIds.has(d.id))} onChange={e => toggleSelectAll(paginatedRows, e.target.checked)} />
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map(row => (
-              <tr key={row.id} className="border-b border-gray-200">
-                <td className="border-l border-gray-300 p-2 truncate" style={{ width: widths[0] }}>
-                  {formatPeriod(row.transaction_date, true)}
-                </td>
-                <td className="border-l border-gray-300 p-2 truncate" style={{ width: widths[1] }}>
-                  {row.category}
-                </td>
-                <td className="border-l border-gray-300 p-2 truncate" style={{ width: widths[2] }}>
-                  {row.unit_code ?? '-'}
-                </td>
-                <td className={`border-l border-gray-300 p-2 truncate ${row.direction === 'masuk' ? 'text-green-600' : 'text-red-600'}`} style={{ width: widths[3] }}>
-                  {row.direction === 'masuk' ? '+' : '-'} {formatRupiah(row.amount)}
-                </td>
-                <td className="p-2 truncate border-l border-gray-300" style={{ width: widths[4] }}>
-                  {formatRupiah(row.running_balance)}
-                </td>
-                <td className="p-2 truncate border-l border-gray-300" style={{ width: widths[5] }} title={row.description ? row.description : ''}>
-                  {row.description}
-                </td>
-                <td className="p-2 truncate border-l border-gray-300" style={{width: widths[6]}}>
-                  {row.unallocated === null ? (
-                    '-'
-                  ) : row.unallocated > 0 ? (
-                    <div className="flex gap-2">
-                      <span className="text-amber-600">{formatRupiah(row.unallocated)}</span>
-                      <button onClick={() => startAllocate(row)} className="text-blue-600 hover:underline text-xs">Alokasikan</button>
-                    </div>
-                  ) : (
-                    formatRupiah(row.unallocated)
-                  )}
-                </td>
-                <td className="p-2" style={{width: widths[7]}}>
-                  <button onClick={() => handleDelete(row)} className="text-red-600 hover:underline text-xs">Hapus</button>
-                  <button onClick={() => startEditTx(row.id)} className="text-blue-600 hover:underline text-xs ml-2">Edit</button>
-                </td>
+                {['Tanggal', 'Kategori', 'Unit', 'Nominal', 'Saldo', 'Catatan', 'Belum Teralokasi (lebihan bayar)'].map((label, i) => (
+                  <th key={label} style={{ width: widths[i + 1], position: 'relative' }} className="p-2 overflow-hidden border-l border-gray-400">
+                    {label}
+                    <div onMouseDown={(e) => {
+                        e.preventDefault();
+                        startResize(i, e.clientX);
+                      }} className="absolute top-0 right-0 h-full w-1 cursor-col-resize hover:bg-gray-400" />
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(() => {
+                return paginatedRows.map(row => (
+                  <tr key={row.id} className="border-b border-gray-200">
+                    <td className='p-2 border-l border-gray-300 text-center' style={{width: widths[0]}}>
+                      <input type="checkbox" name="selectRow" id="selectRow" checked={selectedIds.has(row.id)} onChange={() => toggleSelect(row.id)} />
+                    </td>
+                    <td className="border-l border-gray-300 p-2 truncate" style={{ width: widths[1] }}>
+                      {formatPeriod(row.transaction_date, true)}
+                    </td>
+                    <td className="border-l border-gray-300 p-2 truncate" style={{ width: widths[2] }}>
+                      {row.category}
+                    </td>
+                    <td className="border-l border-gray-300 p-2 truncate" style={{ width: widths[3] }}>
+                      {row.unit_code ?? '-'}
+                    </td>
+                    <td className={`border-l border-gray-300 p-2 truncate ${row.direction === 'masuk' ? 'text-green-600' : 'text-red-600'}`} style={{ width: widths[3] }}>
+                      {row.direction === 'masuk' ? '+' : '-'} {formatRupiah(row.amount)}
+                    </td>
+                    <td className="p-2 truncate border-l border-gray-300" style={{ width: widths[4] }}>
+                      {formatRupiah(row.running_balance)}
+                    </td>
+                    <td className="p-2 truncate border-l border-gray-300" style={{ width: widths[5] }} title={row.description ? row.description : ''}>
+                      {row.description}
+                    </td>
+                    <td className="p-2 truncate border-l border-gray-300" style={{width: widths[6]}}>
+                      {row.unallocated === null ? (
+                        '-'
+                      ) : row.unallocated > 0 ? (
+                        <div className="flex gap-2">
+                          <span className="text-amber-600">{formatRupiah(row.unallocated)}</span>
+                          <button onClick={() => startAllocate(row)} className="text-blue-600 hover:underline text-xs">Alokasikan</button>
+                        </div>
+                      ) : (
+                        formatRupiah(row.unallocated)
+                      )}
+                    </td>
+                  </tr>
+                ))
+              })()}
+            </tbody>
+          </table>
+
+          {/* Pagination controls */}
+          {(() => {
+            const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+
+            return (
+              <div className="flex items-center justify-center gap-3 mt-4 text-sm">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className='px-3 py-1 border border-gray-300 rounded disabled:opacity-40'>{'<'}</button>
+                <span>Halaman {page} dari {totalPages}</span>
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className='px-3 py-1 border border-gray-300 rounded disabled:opacity-40'>{'>'}</button>
+              </div>
+            );
+          })()}
+        </div>
       </div>
+
     </div>
   );
 }
